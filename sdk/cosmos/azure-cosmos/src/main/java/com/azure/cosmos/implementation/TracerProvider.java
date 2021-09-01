@@ -119,7 +119,7 @@ public class TracerProvider {
 
         switch (signal.getType()) {
             case ON_COMPLETE:
-                end(statusCode, null, context);
+                tracer.end(statusCode, null, context);
                 break;
             case ON_ERROR:
                 Throwable throwable = null;
@@ -132,7 +132,7 @@ public class TracerProvider {
                         statusCode = exception.getStatusCode();
                     }
                 }
-                end(statusCode, throwable, context);
+                tracer.end(statusCode, throwable, context);
                 break;
             default:
                 // ON_SUBSCRIBE and ON_NEXT don't have the information to end the span so just return.
@@ -285,14 +285,6 @@ public class TracerProvider {
                         (float) cosmosException.getRequestCharge());
                 }
             });
-    }
-
-    private void end(int statusCode, Throwable throwable, Context context) {
-        if (throwable != null) {
-            tracer.setAttribute(TracerProvider.ERROR_MSG, throwable.getMessage(), context);
-            tracer.setAttribute(TracerProvider.ERROR_TYPE, throwable.getClass().getName(), context);
-        }
-        tracer.end(statusCode, throwable, context);
     }
 
     private void fillClientTelemetry(CosmosAsyncClient cosmosAsyncClient,
