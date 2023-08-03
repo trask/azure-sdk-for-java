@@ -7,17 +7,15 @@ import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.security.keyvault.secrets.SecretClient;
 import com.azure.security.keyvault.secrets.SecretClientBuilder;
 import com.azure.security.keyvault.secrets.models.KeyVaultSecret;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
-import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 
 /**
- * Sample to demonstrate using {@link OtlpGrpcSpanExporter} to export telemetry events when asynchronously creating
- * and listing secrets from a Key Vault using the {@link SecretClient}.
+ * Sample to demonstrate using the default OTLP/gRPC span exporter to export telemetry events when asynchronously
+ * creating and listing secrets from a Key Vault using the {@link SecretClient}.
  */
 public class ListKeyVaultSecretsOtlpExporterSample {
     private static final String VAULT_URL = "<YOUR_VAULT_URL>";
@@ -29,7 +27,7 @@ public class ListKeyVaultSecretsOtlpExporterSample {
      */
     @SuppressWarnings("try")
     public static void main(String[] args) {
-        OpenTelemetrySdk openTelemetry = configureTracing();
+        OpenTelemetry openTelemetry = AutoConfiguredOpenTelemetrySdk.initialize().getOpenTelemetrySdk();
         Tracer tracer = openTelemetry.getTracer("sample");
 
         SecretClient secretClient = new SecretClientBuilder()
@@ -49,24 +47,5 @@ public class ListKeyVaultSecretsOtlpExporterSample {
         } finally {
             span.end();
         }
-
-        openTelemetry.close();
-    }
-
-    /**
-     * Configure the OpenTelemetry to export spans to an OTLP endpoint with {@link OtlpGrpcSpanExporter}.
-     */
-    private static OpenTelemetrySdk configureTracing() {
-        OtlpGrpcSpanExporter spanExporter =
-            OtlpGrpcSpanExporter.builder()
-                .setEndpoint("http://localhost:4317")
-                .build();
-
-        return OpenTelemetrySdk.builder()
-            .setTracerProvider(
-                SdkTracerProvider.builder()
-                    .addSpanProcessor(BatchSpanProcessor.builder(spanExporter).build())
-                    .build())
-            .buildAndRegisterGlobal();
     }
 }

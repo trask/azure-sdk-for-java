@@ -5,16 +5,16 @@ package com.azure.core.tracing.opentelemetry.samples;
 
 import com.azure.data.appconfiguration.ConfigurationClient;
 import com.azure.data.appconfiguration.ConfigurationClientBuilder;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
-import io.opentelemetry.exporter.logging.LoggingSpanExporter;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
+
+import java.util.Map;
 
 /**
- * Sample to demonstrate using {@link LoggingSpanExporter} to export telemetry events when creating a configuration
+ * Sample to demonstrate using the logging span exporter to export telemetry events when creating a configuration
  * in App Configuration through the {@link ConfigurationClient}.
  */
 public class CreateConfigurationSettingLoggingExporterSample {
@@ -27,7 +27,10 @@ public class CreateConfigurationSettingLoggingExporterSample {
      */
     @SuppressWarnings("try")
     public static void main(String[] args) {
-        OpenTelemetrySdk openTelemetry = configureTracing();
+        OpenTelemetry openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
+            .addPropertiesSupplier(() -> Map.of("otel.traces.exporter", "logging"))
+            .build()
+            .getOpenTelemetrySdk();
 
         ConfigurationClient client = new ConfigurationClientBuilder()
             .connectionString(CONNECTION_STRING)
@@ -43,21 +46,5 @@ public class CreateConfigurationSettingLoggingExporterSample {
         } finally {
             span.end();
         }
-
-        openTelemetry.close();
-    }
-
-    /**
-     * Configure the OpenTelemetry to print traces with {@link LoggingSpanExporter}.
-     */
-    private static OpenTelemetrySdk configureTracing() {
-        SdkTracerProvider tracerProvider =
-            SdkTracerProvider.builder()
-                .addSpanProcessor(BatchSpanProcessor.builder(LoggingSpanExporter.create()).build())
-                .build();
-
-        return OpenTelemetrySdk.builder()
-            .setTracerProvider(tracerProvider)
-            .buildAndRegisterGlobal();
     }
 }
