@@ -213,7 +213,7 @@ public class LogDataMapper {
         if (itemCount == null) {
             itemCount = log.getAttributes().get(AiSemanticAttributes.ITEM_COUNT);
         }
-        if (itemCount != null && itemCount != 1) {
+        if (itemCount != null) {
             telemetryBuilder.setSampleRate(100.0f / itemCount);
         }
     }
