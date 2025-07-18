@@ -23,6 +23,8 @@ import reactor.util.annotation.Nullable;
 import java.util.List;
 import java.util.function.BiConsumer;
 
+import static com.azure.monitor.opentelemetry.autoconfigure.implementation.AiSemanticAttributes.*;
+import static com.azure.monitor.opentelemetry.autoconfigure.implementation.SemanticAttributes.*;
 import static io.opentelemetry.api.common.AttributeKey.stringArrayKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
