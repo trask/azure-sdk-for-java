@@ -896,6 +896,14 @@ public final class SpanDataMapper {
             if (value instanceof String) {
                 telemetryBuilder.addTag(ContextTagKeys.AI_APPLICATION_VER.toString(), (String) value);
             }
+        }).exact("microsoft.user.id", (telemetryBuilder, value) -> {
+            if (value instanceof String) {
+                telemetryBuilder.addTag(ContextTagKeys.AI_USER_ID.toString(), (String) value);
+            }
+        }).exact("microsoft.session.id", (telemetryBuilder, value) -> {
+            if (value instanceof String) {
+                telemetryBuilder.addTag(ContextTagKeys.AI_SESSION_ID.toString(), (String) value);
+            }
         });
 
         applyConnectionStringAndRoleNameOverrides(mappingsBuilder);

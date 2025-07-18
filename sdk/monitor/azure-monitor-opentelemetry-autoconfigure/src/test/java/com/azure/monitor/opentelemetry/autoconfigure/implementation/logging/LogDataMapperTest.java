@@ -96,4 +96,87 @@ class LogDataMapperTest {
         TelemetryEventData eventData = (TelemetryEventData) result.getData().getBaseData();
         assertEquals("TestEvent", eventData.getName());
     }
+
+    @Test
+    void testMicrosoftUserIdMapping() {
+        LogRecordData logRecordData
+            = createLogRecordDataWithAttributes(Attributes.builder().put("microsoft.user.id", "test-user-log").build());
+
+        LogDataMapper logDataMapper = new LogDataMapper(true, true, (b, r) -> {
+        });
+        TelemetryItem result = logDataMapper.map(logRecordData, null, null);
+
+        assertNotNull(result);
+        assertNotNull(result.getTags());
+        assertEquals("test-user-log", result.getTags().get("ai.user.id"));
+    }
+
+    @Test
+    void testMicrosoftSessionIdMapping() {
+        LogRecordData logRecordData = createLogRecordDataWithAttributes(
+            Attributes.builder().put("microsoft.session.id", "test-session-log").build());
+
+        LogDataMapper logDataMapper = new LogDataMapper(true, true, (b, r) -> {
+        });
+        TelemetryItem result = logDataMapper.map(logRecordData, null, null);
+
+        assertNotNull(result);
+        assertNotNull(result.getTags());
+        assertEquals("test-session-log", result.getTags().get("ai.session.id"));
+    }
+
+    private LogRecordData createLogRecordDataWithAttributes(Attributes attributes) {
+        return new LogRecordData() {
+            @Override
+            public Resource getResource() {
+                return Resource.empty();
+            }
+
+            @Override
+            public Attributes getAttributes() {
+                return attributes;
+            }
+
+            @Override
+            public InstrumentationScopeInfo getInstrumentationScopeInfo() {
+                return InstrumentationScopeInfo.create("TestScope", null, null);
+            }
+
+            @Override
+            public long getTimestampEpochNanos() {
+                return Instant.now().toEpochMilli() * 1_000_000;
+            }
+
+            @Override
+            public long getObservedTimestampEpochNanos() {
+                return Instant.now().toEpochMilli() * 1_000_000;
+            }
+
+            @Override
+            public SpanContext getSpanContext() {
+                return SpanContext.create(TraceId.fromLongs(12345L, 67890L), SpanId.fromLong(12345L),
+                    TraceFlags.getDefault(), TraceState.getDefault());
+            }
+
+            @Override
+            public Severity getSeverity() {
+                return Severity.INFO;
+            }
+
+            @Override
+            public String getSeverityText() {
+                return "INFO";
+            }
+
+            @Override
+            public Body getBody() {
+                return Body.string("Test log message");
+            }
+
+            @Override
+            public int getTotalAttributeCount() {
+                return attributes.size();
+            }
+        };
+    }
 }
