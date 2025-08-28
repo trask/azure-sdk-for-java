@@ -28,8 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.azure.monitor.opentelemetry.autoconfigure.implementation.SemanticAttributes.HTTP_RESPONSE_STATUS_CODE;
-import static com.azure.monitor.opentelemetry.autoconfigure.implementation.SemanticAttributes.SERVER_ADDRESS;
+import static io.opentelemetry.api.common.AttributeKey.longKey;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static io.opentelemetry.sdk.metrics.data.MetricDataType.DOUBLE_GAUGE;
 import static io.opentelemetry.sdk.metrics.data.MetricDataType.DOUBLE_SUM;
 import static io.opentelemetry.sdk.metrics.data.MetricDataType.HISTOGRAM;
@@ -39,6 +39,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
 public class AzureMonitorMetricExporterTest {
+
+    // copied from HttpAttributes
+    private static final AttributeKey<Long> HTTP_RESPONSE_STATUS_CODE = longKey("http.response.status_code");
+    // copied from ServerAttributes  
+    private static final AttributeKey<String> SERVER_ADDRESS = stringKey("server.address");
 
     @Test
     public void testDoubleCounter() {

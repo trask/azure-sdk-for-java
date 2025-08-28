@@ -39,6 +39,9 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static io.opentelemetry.api.common.AttributeKey.booleanKey;
+import static io.opentelemetry.api.common.AttributeKey.longKey;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 // TODO (trask) can probably align dropping compatibility with old HTTP semconv with the release of
 //  Application Insights Java 4.0
@@ -47,12 +50,101 @@ public final class SpanDataMapper {
     // visible for testing
     public static final String MS_PROCESSED_BY_METRIC_EXTRACTORS = "_MS.ProcessedByMetricExtractors";
 
-    private static final Set<String> SQL_DB_SYSTEMS = new HashSet<>(asList(SemanticAttributes.DbSystemValues.DB2,
-        SemanticAttributes.DbSystemValues.DERBY, SemanticAttributes.DbSystemValues.MARIADB,
-        SemanticAttributes.DbSystemValues.MSSQL, SemanticAttributes.DbSystemValues.MYSQL,
-        SemanticAttributes.DbSystemValues.ORACLE, SemanticAttributes.DbSystemValues.POSTGRESQL,
-        SemanticAttributes.DbSystemValues.SQLITE, SemanticAttributes.DbSystemValues.OTHER_SQL,
-        SemanticAttributes.DbSystemValues.HSQLDB, SemanticAttributes.DbSystemValues.H2));
+    // copied from HttpAttributes
+    private static final AttributeKey<String> HTTP_REQUEST_METHOD = stringKey("http.request.method");
+    private static final AttributeKey<Long> HTTP_RESPONSE_STATUS_CODE = longKey("http.response.status_code");
+
+    // copied from HttpIncubatingAttributes
+    private static final AttributeKey<String> HTTP_METHOD = stringKey("http.method");
+    private static final AttributeKey<String> HTTP_SCHEME = stringKey("http.scheme");
+    private static final AttributeKey<Long> HTTP_STATUS_CODE = longKey("http.status_code");
+    private static final AttributeKey<String> HTTP_TARGET = stringKey("http.target");
+    private static final AttributeKey<String> HTTP_URL = stringKey("http.url");
+    private static final AttributeKey<String> HTTP_CLIENT_IP = stringKey("http.client_ip");
+
+    // copied from UrlAttributes
+    private static final AttributeKey<String> URL_FULL = stringKey("url.full");
+    private static final AttributeKey<String> URL_PATH = stringKey("url.path");
+    private static final AttributeKey<String> URL_QUERY = stringKey("url.query");
+    private static final AttributeKey<String> URL_SCHEME = stringKey("url.scheme");
+
+    // copied from ServerAttributes
+    private static final AttributeKey<String> SERVER_ADDRESS = stringKey("server.address");
+    private static final AttributeKey<Long> SERVER_PORT = longKey("server.port");
+
+    // copied from ClientAttributes
+    private static final AttributeKey<String> CLIENT_ADDRESS = stringKey("client.address");
+
+    // copied from NetworkIncubatingAttributes
+    private static final AttributeKey<String> NET_HOST_NAME = stringKey("net.host.name");
+    private static final AttributeKey<Long> NET_HOST_PORT = longKey("net.host.port");
+    private static final AttributeKey<String> NET_PEER_NAME = stringKey("net.peer.name");
+    private static final AttributeKey<Long> NET_PEER_PORT = longKey("net.peer.port");
+    private static final AttributeKey<String> NET_SOCK_PEER_ADDR = stringKey("net.sock.peer.addr");
+    private static final AttributeKey<String> NET_SOCK_PEER_NAME = stringKey("net.sock.peer.name");
+    private static final AttributeKey<Long> NET_SOCK_PEER_PORT = longKey("net.sock.peer.port");
+
+    // copied from DbIncubatingAttributes
+    private static final AttributeKey<String> DB_NAME = stringKey("db.name");
+    private static final AttributeKey<String> DB_OPERATION = stringKey("db.operation");
+    private static final AttributeKey<String> DB_STATEMENT = stringKey("db.statement");
+    private static final AttributeKey<String> DB_SYSTEM = stringKey("db.system");
+
+    // copied from RpcIncubatingAttributes
+    private static final AttributeKey<String> RPC_SYSTEM = stringKey("rpc.system");
+    private static final AttributeKey<Long> RPC_GRPC_STATUS_CODE = longKey("rpc.grpc.status_code");
+
+    // copied from MessagingIncubatingAttributes
+    private static final AttributeKey<String> MESSAGING_SYSTEM = stringKey("messaging.system");
+    private static final AttributeKey<String> MESSAGING_DESTINATION_NAME = stringKey("messaging.destination.name");
+    private static final AttributeKey<String> MESSAGING_OPERATION = stringKey("messaging.operation");
+
+    // copied from ExceptionAttributes
+    private static final AttributeKey<String> EXCEPTION_TYPE = stringKey("exception.type");
+    private static final AttributeKey<String> EXCEPTION_MESSAGE = stringKey("exception.message");
+    private static final AttributeKey<String> EXCEPTION_STACKTRACE = stringKey("exception.stacktrace");
+
+    // copied from UserAgentAttributes
+    private static final AttributeKey<String> USER_AGENT_ORIGINAL = stringKey("user_agent.original");
+
+    // copied from UserIncubatingAttributes
+    private static final AttributeKey<String> ENDUSER_ID = stringKey("enduser.id");
+    private static final AttributeKey<String> ENDUSER_PSEUDO_ID = stringKey("enduser.pseudo_id");
+
+    // copied from CodeIncubatingAttributes
+    private static final AttributeKey<String> CODE_FILEPATH = stringKey("code.filepath");
+    private static final AttributeKey<String> CODE_FUNCTION = stringKey("code.function");
+    private static final AttributeKey<Long> CODE_LINENO = longKey("code.lineno");
+    private static final AttributeKey<String> CODE_NAMESPACE = stringKey("code.namespace");
+
+    // copied from ThreadIncubatingAttributes
+    private static final AttributeKey<String> THREAD_NAME = stringKey("thread.name");
+
+    // copied from PeerIncubatingAttributes
+    private static final AttributeKey<String> PEER_SERVICE = stringKey("peer.service");
+
+    // copied from DbIncubatingAttributes (values)
+    public static final class DbSystemValues {
+        public static final String DB2 = "db2";
+        public static final String DERBY = "derby";
+        public static final String MARIADB = "mariadb";
+        public static final String MSSQL = "mssql";
+        public static final String MYSQL = "mysql";
+        public static final String ORACLE = "oracle";
+        public static final String POSTGRESQL = "postgresql";
+        public static final String SQLITE = "sqlite";
+        public static final String OTHER_SQL = "other_sql";
+        public static final String HSQLDB = "hsqldb";
+        public static final String H2 = "h2";
+        public static final String MONGODB = "mongodb";
+        public static final String CASSANDRA = "cassandra";
+        public static final String REDIS = "redis";
+    }
+
+    private static final Set<String> SQL_DB_SYSTEMS
+        = new HashSet<>(asList(DbSystemValues.DB2, DbSystemValues.DERBY, DbSystemValues.MARIADB, DbSystemValues.MSSQL,
+            DbSystemValues.MYSQL, DbSystemValues.ORACLE, DbSystemValues.POSTGRESQL, DbSystemValues.SQLITE,
+            DbSystemValues.OTHER_SQL, DbSystemValues.HSQLDB, DbSystemValues.H2));
 
     // this is needed until Azure SDK moves to latest OTel semantic conventions
     private static final String COSMOS = "Cosmos";
@@ -71,7 +163,7 @@ public final class SpanDataMapper {
             .ignoreExact(AiSemanticAttributes.AZURE_SDK_ENQUEUED_TIME.getKey())
             .ignoreExact(AiSemanticAttributes.KAFKA_RECORD_QUEUE_TIME_MS.getKey())
             .ignoreExact(AiSemanticAttributes.KAFKA_OFFSET.getKey())
-            .exact(SemanticAttributes.USER_AGENT_ORIGINAL.getKey(), (builder, value) -> {
+            .exact(USER_AGENT_ORIGINAL.getKey(), (builder, value) -> {
                 if (value instanceof String) {
                     builder.addTag("ai.user.userAgent", (String) value);
                 }
@@ -177,8 +269,7 @@ public final class SpanDataMapper {
     private static String getDependencyName(SpanData span) {
         String name = span.getName();
 
-        String method = getStableOrOldAttribute(span.getAttributes(), SemanticAttributes.HTTP_REQUEST_METHOD,
-            SemanticAttributes.HTTP_METHOD);
+        String method = getStableOrOldAttribute(span.getAttributes(), HTTP_REQUEST_METHOD, HTTP_METHOD);
         if (method == null) {
             return name;
         }
@@ -187,8 +278,7 @@ public final class SpanDataMapper {
             return name;
         }
 
-        String url
-            = getStableOrOldAttribute(span.getAttributes(), SemanticAttributes.URL_FULL, SemanticAttributes.HTTP_URL);
+        String url = getStableOrOldAttribute(span.getAttributes(), URL_FULL, HTTP_URL);
         if (url == null) {
             return name;
         }
@@ -202,18 +292,17 @@ public final class SpanDataMapper {
 
     private static void applySemanticConventions(RemoteDependencyTelemetryBuilder telemetryBuilder, SpanData span) {
         Attributes attributes = span.getAttributes();
-        String httpMethod = getStableOrOldAttribute(attributes, SemanticAttributes.HTTP_REQUEST_METHOD,
-            SemanticAttributes.HTTP_METHOD);
+        String httpMethod = getStableOrOldAttribute(attributes, HTTP_REQUEST_METHOD, HTTP_METHOD);
         if (httpMethod != null) {
             applyHttpClientSpan(telemetryBuilder, attributes);
             return;
         }
-        String rpcSystem = attributes.get(SemanticAttributes.RPC_SYSTEM);
+        String rpcSystem = attributes.get(RPC_SYSTEM);
         if (rpcSystem != null) {
             applyRpcClientSpan(telemetryBuilder, rpcSystem, attributes);
             return;
         }
-        String dbSystem = attributes.get(SemanticAttributes.DB_SYSTEM);
+        String dbSystem = attributes.get(DB_SYSTEM);
         if (dbSystem == null) {
             // special case needed until Azure SDK moves to latest OTel semantic conventions
             dbSystem = attributes.get(AiSemanticAttributes.AZURE_SDK_DB_TYPE);
@@ -252,7 +341,7 @@ public final class SpanDataMapper {
             // special case needed until Azure SDK moves to OTel semantic conventions
             return azureNamespace;
         }
-        return attributes.get(SemanticAttributes.MESSAGING_SYSTEM);
+        return attributes.get(MESSAGING_SYSTEM);
     }
 
     private static void setOperationTags(AbstractTelemetryBuilder telemetryBuilder, SpanData span) {
@@ -284,15 +373,15 @@ public final class SpanDataMapper {
 
     private static void applyHttpClientSpan(RemoteDependencyTelemetryBuilder telemetryBuilder, Attributes attributes) {
 
-        String httpUrl = getStableOrOldAttribute(attributes, SemanticAttributes.URL_FULL, SemanticAttributes.HTTP_URL);
+        String httpUrl = getStableOrOldAttribute(attributes, URL_FULL, HTTP_URL);
         int defaultPort = getDefaultPortForHttpUrl(httpUrl);
         String target = getTargetOrDefault(attributes, defaultPort, "Http");
 
         telemetryBuilder.setType("Http");
         telemetryBuilder.setTarget(target);
 
-        Long httpStatusCode = getStableOrOldAttribute(attributes, SemanticAttributes.HTTP_RESPONSE_STATUS_CODE,
-            SemanticAttributes.HTTP_STATUS_CODE);
+        Long httpStatusCode = getStableOrOldAttribute(attributes, HTTP_RESPONSE_STATUS_CODE,
+            HTTP_STATUS_CODE);
         if (httpStatusCode != null) {
             telemetryBuilder.setResultCode(Long.toString(httpStatusCode));
         } else {
@@ -338,13 +427,13 @@ public final class SpanDataMapper {
 
     @Nullable
     private static String getTargetOrNullStableSemconv(Attributes attributes, int defaultPort) {
-        String peerService = attributes.get(SemanticAttributes.PEER_SERVICE); // this isn't part of stable semconv, but still has priority for now
+        String peerService = attributes.get(PEER_SERVICE); // this isn't part of stable semconv, but still has priority for now
         if (peerService != null) {
             return peerService;
         }
-        String host = attributes.get(SemanticAttributes.SERVER_ADDRESS);
+        String host = attributes.get(SERVER_ADDRESS);
         if (host != null) {
-            Long port = attributes.get(SemanticAttributes.SERVER_PORT);
+            Long port = attributes.get(SERVER_PORT);
             return getTarget(host, port, defaultPort);
         }
         return null;
@@ -352,24 +441,24 @@ public final class SpanDataMapper {
 
     @Nullable
     private static String getTargetOrNullOldSemconv(Attributes attributes, int defaultPort) {
-        String peerService = attributes.get(SemanticAttributes.PEER_SERVICE);
+        String peerService = attributes.get(PEER_SERVICE);
         if (peerService != null) {
             return peerService;
         }
-        String host = attributes.get(SemanticAttributes.NET_PEER_NAME);
+        String host = attributes.get(NET_PEER_NAME);
         if (host != null) {
-            Long port = attributes.get(SemanticAttributes.NET_PEER_PORT);
+            Long port = attributes.get(NET_PEER_PORT);
             return getTarget(host, port, defaultPort);
         }
-        host = attributes.get(SemanticAttributes.NET_SOCK_PEER_NAME);
+        host = attributes.get(NET_SOCK_PEER_NAME);
         if (host == null) {
-            host = attributes.get(SemanticAttributes.NET_SOCK_PEER_ADDR);
+            host = attributes.get(NET_SOCK_PEER_ADDR);
         }
         if (host != null) {
-            Long port = attributes.get(SemanticAttributes.NET_SOCK_PEER_PORT);
+            Long port = attributes.get(NET_SOCK_PEER_PORT);
             return getTarget(host, port, defaultPort);
         }
-        String httpUrl = attributes.get(SemanticAttributes.HTTP_URL);
+        String httpUrl = attributes.get(HTTP_URL);
         if (httpUrl != null) {
             // this is needed for instrumentations which don't yet follow the latest OpenTelemetry
             // semantic attributes (in particular Azure SDK instrumentation)
@@ -388,15 +477,15 @@ public final class SpanDataMapper {
 
     private static void applyDatabaseClientSpan(RemoteDependencyTelemetryBuilder telemetryBuilder, String dbSystem,
         Attributes attributes) {
-        String dbStatement = attributes.get(SemanticAttributes.DB_STATEMENT);
+        String dbStatement = attributes.get(DB_STATEMENT);
         if (dbStatement == null) {
-            dbStatement = attributes.get(SemanticAttributes.DB_OPERATION);
+            dbStatement = attributes.get(DB_OPERATION);
         }
         String type;
         if (SQL_DB_SYSTEMS.contains(dbSystem)) {
-            if (dbSystem.equals(SemanticAttributes.DbSystemValues.MYSQL)) {
+            if (dbSystem.equals(DbSystemValues.MYSQL)) {
                 type = "mysql"; // this has special icon in portal
-            } else if (dbSystem.equals(SemanticAttributes.DbSystemValues.POSTGRESQL)) {
+            } else if (dbSystem.equals(DbSystemValues.POSTGRESQL)) {
                 type = "postgresql"; // this has special icon in portal
             } else {
                 type = "SQL";
@@ -423,7 +512,7 @@ public final class SpanDataMapper {
             dbName = attributes.get(AiSemanticAttributes.AZURE_SDK_DB_INSTANCE);
         } else {
             target = getTargetOrDefault(attributes, getDefaultPortForDbSystem(dbSystem), dbSystem);
-            dbName = attributes.get(SemanticAttributes.DB_NAME);
+            dbName = attributes.get(DB_NAME);
         }
         target = nullAwareConcat(target, dbName, " | ");
         if (target == null) {
@@ -449,35 +538,35 @@ public final class SpanDataMapper {
         // TODO (trask) make the ports constants (at least in JdbcConnectionUrlParser) so they can be
         // used here
         switch (dbSystem) {
-            case SemanticAttributes.DbSystemValues.MONGODB:
+            case DbSystemValues.MONGODB:
                 return 27017;
 
-            case SemanticAttributes.DbSystemValues.CASSANDRA:
+            case DbSystemValues.CASSANDRA:
                 return 9042;
 
-            case SemanticAttributes.DbSystemValues.REDIS:
+            case DbSystemValues.REDIS:
                 return 6379;
 
-            case SemanticAttributes.DbSystemValues.MARIADB:
-            case SemanticAttributes.DbSystemValues.MYSQL:
+            case DbSystemValues.MARIADB:
+            case DbSystemValues.MYSQL:
                 return 3306;
 
-            case SemanticAttributes.DbSystemValues.MSSQL:
+            case DbSystemValues.MSSQL:
                 return 1433;
 
-            case SemanticAttributes.DbSystemValues.DB2:
+            case DbSystemValues.DB2:
                 return 50000;
 
-            case SemanticAttributes.DbSystemValues.ORACLE:
+            case DbSystemValues.ORACLE:
                 return 1521;
 
-            case SemanticAttributes.DbSystemValues.H2:
+            case DbSystemValues.H2:
                 return 8082;
 
-            case SemanticAttributes.DbSystemValues.DERBY:
+            case DbSystemValues.DERBY:
                 return 1527;
 
-            case SemanticAttributes.DbSystemValues.POSTGRESQL:
+            case DbSystemValues.POSTGRESQL:
                 return 5432;
 
             default:
@@ -530,10 +619,10 @@ public final class SpanDataMapper {
             telemetryBuilder.setUrl(httpUrl);
         }
 
-        Long httpStatusCode = getStableOrOldAttribute(attributes, SemanticAttributes.HTTP_RESPONSE_STATUS_CODE,
-            SemanticAttributes.HTTP_STATUS_CODE);
+        Long httpStatusCode = getStableOrOldAttribute(attributes, HTTP_RESPONSE_STATUS_CODE,
+            HTTP_STATUS_CODE);
         if (httpStatusCode == null) {
-            httpStatusCode = attributes.get(SemanticAttributes.RPC_GRPC_STATUS_CODE);
+            httpStatusCode = attributes.get(RPC_GRPC_STATUS_CODE);
         }
         if (httpStatusCode != null) {
             telemetryBuilder.setResponseCode(Long.toString(httpStatusCode));
@@ -542,10 +631,10 @@ public final class SpanDataMapper {
         }
 
         String locationIp
-            = getStableOrOldAttribute(attributes, SemanticAttributes.CLIENT_ADDRESS, SemanticAttributes.HTTP_CLIENT_IP);
+            = getStableOrOldAttribute(attributes, CLIENT_ADDRESS, HTTP_CLIENT_IP);
         if (locationIp == null) {
             // only use net.peer.ip if http.client_ip is not available
-            locationIp = attributes.get(SemanticAttributes.NET_SOCK_PEER_ADDR);
+            locationIp = attributes.get(NET_SOCK_PEER_ADDR);
         }
         if (locationIp != null) {
             telemetryBuilder.addTag(ContextTagKeys.AI_LOCATION_IP.toString(), locationIp);
@@ -604,7 +693,7 @@ public final class SpanDataMapper {
             case UNSET:
                 if (captureHttpServer4xxAsError) {
                     Long statusCode = getStableOrOldAttribute(span.getAttributes(),
-                        SemanticAttributes.HTTP_RESPONSE_STATUS_CODE, SemanticAttributes.HTTP_STATUS_CODE);
+                        HTTP_RESPONSE_STATUS_CODE, HTTP_STATUS_CODE);
                     return statusCode == null || statusCode < 400;
                 }
                 return true;
@@ -623,20 +712,20 @@ public final class SpanDataMapper {
 
     @Nullable
     private static String getHttpUrlFromServerSpanStableSemconv(Attributes attributes) {
-        String scheme = attributes.get(SemanticAttributes.URL_SCHEME);
+        String scheme = attributes.get(URL_SCHEME);
         if (scheme == null) {
             return null;
         }
-        String host = attributes.get(SemanticAttributes.SERVER_ADDRESS);
+        String host = attributes.get(SERVER_ADDRESS);
         if (host == null) {
             return null;
         }
-        Long port = attributes.get(SemanticAttributes.SERVER_PORT);
-        String path = attributes.get(SemanticAttributes.URL_PATH);
+        Long port = attributes.get(SERVER_PORT);
+        String path = attributes.get(URL_PATH);
         if (path == null) {
             return null;
         }
-        String query = attributes.get(SemanticAttributes.URL_QUERY);
+        String query = attributes.get(URL_QUERY);
 
         int len = scheme.length() + host.length() + path.length();
         if (port != null) {
@@ -668,20 +757,20 @@ public final class SpanDataMapper {
 
     @Nullable
     private static String getHttpUrlFromServerSpanOldSemconv(Attributes attributes) {
-        String httpUrl = attributes.get(SemanticAttributes.HTTP_URL);
+        String httpUrl = attributes.get(HTTP_URL);
         if (httpUrl != null) {
             return httpUrl;
         }
-        String scheme = attributes.get(SemanticAttributes.HTTP_SCHEME);
+        String scheme = attributes.get(HTTP_SCHEME);
         if (scheme == null) {
             return null;
         }
-        String target = attributes.get(SemanticAttributes.HTTP_TARGET);
+        String target = attributes.get(HTTP_TARGET);
         if (target == null) {
             return null;
         }
-        String host = attributes.get(SemanticAttributes.NET_HOST_NAME);
-        Long port = attributes.get(SemanticAttributes.NET_HOST_PORT);
+        String host = attributes.get(NET_HOST_NAME);
+        Long port = attributes.get(NET_HOST_PORT);
         if (port != null && port > 0) {
             return scheme + "://" + host + ":" + port + target;
         }
@@ -719,7 +808,7 @@ public final class SpanDataMapper {
         }
         // TODO (trask) AI mapping: should this pass default port for messaging.system?
         String source = nullAwareConcat(getTargetOrNullOldSemconv(attributes, Integer.MAX_VALUE),
-            attributes.get(SemanticAttributes.MESSAGING_DESTINATION_NAME), "/");
+            attributes.get(MESSAGING_DESTINATION_NAME), "/");
         if (source != null) {
             return source;
         }
@@ -757,14 +846,14 @@ public final class SpanDataMapper {
                 continue;
             }
 
-            if (event.getAttributes().get(SemanticAttributes.EXCEPTION_TYPE) != null
-                || event.getAttributes().get(SemanticAttributes.EXCEPTION_MESSAGE) != null) {
+            if (event.getAttributes().get(EXCEPTION_TYPE) != null
+                || event.getAttributes().get(EXCEPTION_MESSAGE) != null) {
                 SpanContext parentSpanContext = span.getParentSpanContext();
                 // Application Insights expects exception records to be "top-level" exceptions
                 // not just any exception that bubbles up
                 if (!parentSpanContext.isValid() || parentSpanContext.isRemote()) {
                     // TODO (trask) map OpenTelemetry exception to Application Insights exception better
-                    String stacktrace = event.getAttributes().get(SemanticAttributes.EXCEPTION_STACKTRACE);
+                    String stacktrace = event.getAttributes().get(EXCEPTION_STACKTRACE);
                     if (stacktrace != null && !shouldSuppress.test(span, event)) {
                         String exceptionLogged = span.getAttributes().get(AiSemanticAttributes.LOGGED_EXCEPTION);
                         if (!stacktrace.equals(exceptionLogged)) {
@@ -820,7 +909,7 @@ public final class SpanDataMapper {
         MAPPINGS.map(span.getAttributes(), telemetryBuilder);
 
         // set exception-specific properties
-        String errorStack = event.getAttributes().get(SemanticAttributes.EXCEPTION_STACKTRACE);
+        String errorStack = event.getAttributes().get(EXCEPTION_STACKTRACE);
         setExceptions(errorStack, event.getAttributes(), telemetryBuilder);
 
         return telemetryBuilder.build();
@@ -828,11 +917,11 @@ public final class SpanDataMapper {
 
     static void setExceptions(String stack, Attributes attributes, ExceptionTelemetryBuilder telemetryBuilder) {
         ExceptionDetailBuilder builder = new ExceptionDetailBuilder();
-        String type = attributes.get(SemanticAttributes.EXCEPTION_TYPE);
+        String type = attributes.get(EXCEPTION_TYPE);
         if (type != null && !type.isEmpty()) {
             builder.setTypeName(type);
         }
-        String message = attributes.get(SemanticAttributes.EXCEPTION_MESSAGE);
+        String message = attributes.get(EXCEPTION_MESSAGE);
         if (message != null && !message.isEmpty()) {
             builder.setMessage(message);
         } else {
@@ -888,11 +977,11 @@ public final class SpanDataMapper {
     }
 
     static void applyCommonTags(MappingsBuilder mappingsBuilder) {
-        mappingsBuilder.exact(SemanticAttributes.ENDUSER_ID.getKey(), (telemetryBuilder, value) -> {
+        mappingsBuilder.exact(ENDUSER_ID.getKey(), (telemetryBuilder, value) -> {
             if (value instanceof String) {
                 telemetryBuilder.addTag(ContextTagKeys.AI_USER_AUTH_USER_ID.toString(), (String) value);
             }
-        }).exact(SemanticAttributes.ENDUSER_PSEUDO_ID.getKey(), (telemetryBuilder, value) -> {
+        }).exact(ENDUSER_PSEUDO_ID.getKey(), (telemetryBuilder, value) -> {
             if (value instanceof String) {
                 telemetryBuilder.addTag(ContextTagKeys.AI_USER_ID.toString(), (String) value);
             }

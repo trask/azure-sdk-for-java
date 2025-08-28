@@ -5,8 +5,10 @@ package com.azure.monitor.opentelemetry.autoconfigure;
 
 import com.azure.core.util.logging.ClientLogger;
 import com.azure.monitor.opentelemetry.autoconfigure.implementation.LogDataMapper;
-import com.azure.monitor.opentelemetry.autoconfigure.implementation.SemanticAttributes;
+import io.opentelemetry.api.common.AttributeKey;
 import com.azure.monitor.opentelemetry.autoconfigure.implementation.logging.OperationLogger;
+
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import com.azure.monitor.opentelemetry.autoconfigure.implementation.models.TelemetryItem;
 import com.azure.monitor.opentelemetry.autoconfigure.implementation.pipeline.TelemetryItemExporter;
 import com.azure.monitor.opentelemetry.autoconfigure.implementation.quickpulse.QuickPulse;
@@ -25,6 +27,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * logging services to export recorded data for sampled logs in their own format.
  */
 class AzureMonitorLogRecordExporter implements LogRecordExporter {
+
+    // copied from ExceptionAttributes
+    private static final AttributeKey<String> EXCEPTION_STACKTRACE = stringKey("exception.stacktrace");
 
     private static final String AUTO_CONFIGURE_LOG_PREFIX = AzureMonitorAutoConfigure.class.getPackage().getName();
     private static final ClientLogger LOGGER = new ClientLogger(AzureMonitorLogRecordExporter.class);
@@ -64,7 +69,7 @@ class AzureMonitorLogRecordExporter implements LogRecordExporter {
             }
             LOGGER.verbose("exporting log: {}", log);
             try {
-                String stack = log.getAttributes().get(SemanticAttributes.EXCEPTION_STACKTRACE);
+                String stack = log.getAttributes().get(EXCEPTION_STACKTRACE);
                 TelemetryItem telemetryItem = mapper.map(log, stack, null);
                 telemetryItems.add(telemetryItem);
                 if (quickPulse != null && quickPulse.isEnabled()) {

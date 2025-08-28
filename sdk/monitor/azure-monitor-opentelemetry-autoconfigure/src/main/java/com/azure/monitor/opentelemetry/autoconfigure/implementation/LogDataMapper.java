@@ -23,12 +23,22 @@ import reactor.util.annotation.Nullable;
 import java.util.List;
 import java.util.function.BiConsumer;
 
+import static io.opentelemetry.api.common.AttributeKey.longKey;
 import static io.opentelemetry.api.common.AttributeKey.stringArrayKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 public class LogDataMapper {
 
     private static final ClientLogger logger = new ClientLogger(LogDataMapper.class);
+
+    // copied from CodeIncubatingAttributes
+    private static final AttributeKey<String> CODE_FILEPATH = stringKey("code.filepath");
+    private static final AttributeKey<String> CODE_NAMESPACE = stringKey("code.namespace");
+    private static final AttributeKey<String> CODE_FUNCTION = stringKey("code.function");
+    private static final AttributeKey<Long> CODE_LINENO = longKey("code.lineno");
+
+    // copied from ThreadIncubatingAttributes
+    private static final AttributeKey<String> THREAD_NAME = stringKey("thread.name");
 
     private static final String LOG4J_MDC_PREFIX = "log4j.mdc."; // log4j 1.2
     private static final String LOG4J_CONTEXT_DATA_PREFIX = "log4j.context_data."; // log4j 2.x
@@ -61,10 +71,10 @@ public class LogDataMapper {
             .prefix(LOG4J_MAP_MESSAGE_PREFIX, (telemetryBuilder, key, value) -> {
                 telemetryBuilder.addProperty(key.substring(LOG4J_MAP_MESSAGE_PREFIX.length()), String.valueOf(value));
             })
-            .exactString(SemanticAttributes.CODE_FILEPATH, "FileName")
-            .exactString(SemanticAttributes.CODE_NAMESPACE, "ClassName")
-            .exactString(SemanticAttributes.CODE_FUNCTION, "MethodName")
-            .exactLong(SemanticAttributes.CODE_LINENO, "LineNumber")
+            .exactString(CODE_FILEPATH, "FileName")
+            .exactString(CODE_NAMESPACE, "ClassName")
+            .exactString(CODE_FUNCTION, "MethodName")
+            .exactLong(CODE_LINENO, "LineNumber")
             .exactString(LOG4J_MARKER, "Marker")
             .exactStringArray(LOGBACK_MARKER, "Marker");
 
@@ -145,8 +155,8 @@ public class LogDataMapper {
         telemetryBuilder.setMessage(log.getBody().asString());
 
         // set message-specific properties
-        setLoggerProperties(telemetryBuilder, log.getInstrumentationScopeInfo().getName(),
-            attributes.get(SemanticAttributes.THREAD_NAME), log.getSeverity());
+        setLoggerProperties(telemetryBuilder, log.getInstrumentationScopeInfo().getName(), attributes.get(THREAD_NAME),
+            log.getSeverity());
 
         return telemetryBuilder.build();
     }
@@ -168,8 +178,8 @@ public class LogDataMapper {
         telemetryBuilder.setSeverityLevel(toSeverityLevel(log.getSeverity()));
 
         // set exception-specific properties
-        setLoggerProperties(telemetryBuilder, log.getInstrumentationScopeInfo().getName(),
-            attributes.get(SemanticAttributes.THREAD_NAME), log.getSeverity());
+        setLoggerProperties(telemetryBuilder, log.getInstrumentationScopeInfo().getName(), attributes.get(THREAD_NAME),
+            log.getSeverity());
 
         if (log.getBody() != null) {
             telemetryBuilder.addProperty("Logger Message", log.getBody().asString());

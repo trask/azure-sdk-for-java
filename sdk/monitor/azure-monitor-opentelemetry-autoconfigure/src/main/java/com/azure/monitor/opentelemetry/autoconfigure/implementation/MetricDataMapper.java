@@ -33,6 +33,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static com.azure.monitor.opentelemetry.autoconfigure.implementation.MappingsBuilder.MappingType.METRIC;
+import static io.opentelemetry.api.common.AttributeKey.longKey;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static io.opentelemetry.api.internal.Utils.checkArgument;
 import static io.opentelemetry.sdk.metrics.data.MetricDataType.DOUBLE_GAUGE;
 import static io.opentelemetry.sdk.metrics.data.MetricDataType.DOUBLE_SUM;
@@ -41,6 +43,19 @@ import static io.opentelemetry.sdk.metrics.data.MetricDataType.LONG_GAUGE;
 import static io.opentelemetry.sdk.metrics.data.MetricDataType.LONG_SUM;
 
 public class MetricDataMapper {
+
+    // copied from HttpAttributes  
+    private static final AttributeKey<Long> HTTP_RESPONSE_STATUS_CODE = longKey("http.response.status_code");
+
+    // copied from HttpIncubatingAttributes
+    private static final AttributeKey<Long> HTTP_STATUS_CODE = longKey("http.status_code");
+    private static final AttributeKey<String> HTTP_SCHEME = stringKey("http.scheme");
+
+    // copied from UrlAttributes
+    private static final AttributeKey<String> URL_SCHEME = stringKey("url.scheme");
+
+    // copied from RpcAttributes
+    private static final AttributeKey<String> RPC_SYSTEM = stringKey("rpc.system");
 
     private static final ClientLogger logger = new ClientLogger(MetricDataMapper.class);
 
@@ -175,8 +190,8 @@ public class MetricDataMapper {
 
         Attributes attributes = pointData.getAttributes();
         if (isPreAggregatedStandardMetric) {
-            Long statusCode = SpanDataMapper.getStableOrOldAttribute(attributes,
-                SemanticAttributes.HTTP_RESPONSE_STATUS_CODE, SemanticAttributes.HTTP_STATUS_CODE);
+            Long statusCode
+                = SpanDataMapper.getStableOrOldAttribute(attributes, HTTP_RESPONSE_STATUS_CODE, HTTP_STATUS_CODE);
             boolean success = isSuccess(metricData.getName(), statusCode, captureHttpServer4xxAsError);
             Boolean isSynthetic = attributes.get(AiSemanticAttributes.IS_SYNTHETIC);
 
@@ -190,10 +205,10 @@ public class MetricDataMapper {
                 int defaultPort;
                 if (metricData.getName().startsWith("http")) {
                     dependencyType = "Http";
-                    defaultPort = getDefaultPortForHttpScheme(SpanDataMapper.getStableOrOldAttribute(attributes,
-                        SemanticAttributes.URL_SCHEME, SemanticAttributes.HTTP_SCHEME));
+                    defaultPort = getDefaultPortForHttpScheme(
+                        SpanDataMapper.getStableOrOldAttribute(attributes, URL_SCHEME, HTTP_SCHEME));
                 } else {
-                    dependencyType = attributes.get(SemanticAttributes.RPC_SYSTEM);
+                    dependencyType = attributes.get(RPC_SYSTEM);
                     if (dependencyType == null) {
                         // rpc.system is required by the semantic conventions
                         dependencyType = "Unknown";
